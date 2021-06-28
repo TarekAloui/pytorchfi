@@ -117,7 +117,8 @@ def gather_min_max_per_layer(
 
     print("COUNT", count)
 
-    return layer_min, layer_max
+    actual_max = torch.max(torch.abs(layer_min), torch.abs(layer_max))
+    return layer_min, layer_max, actual_max
 
 
 def load_dataiter(batch_sz):
@@ -174,8 +175,10 @@ if __name__ == "__main__":
     dataiter = load_dataiter(BATCH_SIZE)
 
     # Executing profiling pass
-    layer_min, layer_max = gather_min_max_per_layer(model, dataiter, BATCH_SIZE)
-    ranges = [layer_min.numpy().tolist(), layer_max.numpy().tolist()]
+    layer_min, layer_max, actual_max = gather_min_max_per_layer(
+        model, dataiter, BATCH_SIZE
+    )
+    ranges = actual_max.numpy().tolist()
 
     path = "/n/home09/taloui/scratch/pytorchfi/test/vision_transformers/profile/"
     save_data(path, "range_data_layer", ranges)
@@ -189,8 +192,8 @@ if __name__ == "__main__":
     #         f.write(outputString)
     # f.close()
 
-    # f = open(path + "range_data" + "_layer.csv", "w+")
-    # for i in range(len(layer_ranges)):
-    #     outputString = "%d, %f\n" % (i, layer_ranges[i])
-    #     f.write(outputString)
-    # f.close()
+    f = open(path + "range_data" + "_layer.csv", "w+")
+    for i in range(len(ranges)):
+        outputString = "%d, %f %f\n" % (i, ranges[i])
+        f.write(outputString)
+    f.close()
