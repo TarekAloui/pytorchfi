@@ -11,8 +11,20 @@ import torch.nn as nn
 
 
 class fault_injection:
-    def __init__(self, model, batch_size, input_shape=[3, 224, 224], layer_types=[nn.Conv2d], **kwargs):
-        logging.basicConfig(format="%(asctime)-15s %(clientip)s %(user)-8s %(message)s")
+    def __init__(
+        self,
+        model,
+        batch_size,
+        input_shape=[3, 224, 224],
+        layer_types=[nn.Conv2d],
+        **kwargs
+    ):
+        # logging.basicConfig(
+        #     format="%(asctime)-15s %(clientip)s %(user)-8s %(message)s",
+        #     level=logging.INFO,
+        # )
+
+        logging.basicConfig(level=logging.INFO)
 
         self.ORIG_MODEL = model
         self.OUTPUT_SIZE = list()
@@ -37,9 +49,13 @@ class fault_injection:
 
         self.use_cuda = kwargs.get("use_cuda", next(model.parameters()).is_cuda)
 
-        assert isinstance(input_shape, list), "Error: Input shape must be provided as a list."
-        assert isinstance(batch_size, int) and batch_size >= 1, "Error: Batch size must be an integer greater than 1."
-        assert len(layer_types) >= 0 , "Error: At least one layer type must be selected."
+        assert isinstance(
+            input_shape, list
+        ), "Error: Input shape must be provided as a list."
+        assert (
+            isinstance(batch_size, int) and batch_size >= 1
+        ), "Error: Batch size must be an integer greater than 1."
+        assert len(layer_types) >= 0, "Error: At least one layer type must be selected."
 
         handles, shapes = self._traverseModelAndSetHooks(
             self.ORIG_MODEL, self._INJ_LAYER_TYPES
@@ -48,9 +64,7 @@ class fault_injection:
         dummy_shape = (1, *self._INPUT_SHAPE)  # profiling only needs one batch element
         model_dtype = next(model.parameters()).dtype
         device = "cuda" if self.use_cuda else None
-        _dummyTensor = torch.randn(
-            dummy_shape, dtype=model_dtype, device=device
-        )
+        _dummyTensor = torch.randn(dummy_shape, dtype=model_dtype, device=device)
 
         self.ORIG_MODEL(_dummyTensor)
 
@@ -122,7 +136,9 @@ class fault_injection:
                         handles.append(layer.register_forward_hook(hook))
             # unpack node
             else:
-                subHandles = self._traverseModelAndSetHooksNeurons(layer, layer_types, customInj, injFunc)
+                subHandles = self._traverseModelAndSetHooksNeurons(
+                    layer, layer_types, customInj, injFunc
+                )
                 for i in subHandles:
                     handles.append(i)
 
@@ -142,7 +158,9 @@ class fault_injection:
                 corrupt_kH = kwargs.get("h", list())
                 corrupt_kW = kwargs.get("w", list())
             else:
-                corrupt_layer = kwargs.get("layer_num", )
+                corrupt_layer = kwargs.get(
+                    "layer_num",
+                )
                 corrupt_k = kwargs.get("k", list())
                 corrupt_c = kwargs.get("c", list())
                 corrupt_kH = kwargs.get("h", list())
@@ -213,14 +231,21 @@ class fault_injection:
         else:
             raise ValueError("Please specify an injection or injection function")
 
-        self.checkBounds(self.CORRUPT_BATCH, self.CORRUPT_LAYER, self.CORRUPT_DIM1, self.CORRUPT_DIM2, self.CORRUPT_DIM3)
+        self.checkBounds(
+            self.CORRUPT_BATCH,
+            self.CORRUPT_LAYER,
+            self.CORRUPT_DIM1,
+            self.CORRUPT_DIM2,
+            self.CORRUPT_DIM3,
+        )
 
         self.CORRUPTED_MODEL = copy.deepcopy(self.ORIG_MODEL)
         handles_neurons = self._traverseModelAndSetHooksNeurons(
             self.CORRUPTED_MODEL,
             self._INJ_LAYER_TYPES,
             CUSTOM_INJECTION,
-            INJECTION_FUNCTION)
+            INJECTION_FUNCTION,
+        )
 
         for i in handles_neurons:
             self.HANDLES.append(i)
@@ -237,45 +262,66 @@ class fault_injection:
         for i in range(len(b)):
             self.assert_inj_bounds(i)
 
-
-
     def assert_inj_bounds(self, index, **kwargs):
-        assert (index >= 0
-        ), "Invalid injection index: %d" %(index)
+        assert index >= 0, "Invalid injection index: %d" % (index)
         assert (
-                self.CORRUPT_BATCH[index] < self.get_total_batches()
-        ), "%d < %d: Invalid batch element!" %(self.CORRUPT_BATCH[index], self.get_total_batches())
+            self.CORRUPT_BATCH[index] < self.get_total_batches()
+        ), "%d < %d: Invalid batch element!" % (
+            self.CORRUPT_BATCH[index],
+            self.get_total_batches(),
+        )
         assert (
             self.CORRUPT_LAYER[index] < self.get_total_layers()
-        ), "%d < %d: Invalid layer!" %(self.CORRUPT_LAYER[index], self.get_total_layers())
+        ), "%d < %d: Invalid layer!" % (
+            self.CORRUPT_LAYER[index],
+            self.get_total_layers(),
+        )
 
         corruptLayerNum = self.CORRUPT_LAYER[index]
         layerType = self.LAYERS_TYPE[corruptLayerNum]
         layerDim = self.LAYERS_DIM[corruptLayerNum]
         layerShape = self.OUTPUT_SIZE[corruptLayerNum]
 
+        logging.info("DEBUG")
+
+        logging.info(self.CORRUPT_DIM1[index])
+        logging.info("  ")
+        logging.info(layerShape[1])
+
         assert (
-            self.CORRUPT_DIM1[index]
-            < layerShape[1]
-        ), "%d < %d: Out of bounds error in Dimension 1!" %(self.CORRUPT_DIM1[index], layerShape[1])
+            self.CORRUPT_DIM1[index] < layerShape[1]
+        ), "%d < %d: Out of bounds error in Dimension 1!" % (
+            self.CORRUPT_DIM1[index],
+            layerShape[1],
+        )
         if layerDim > 2:
             assert (
-                self.CORRUPT_DIM2[index]
-                < layerShape[2]
-            ), "%d < %d: Out of bounds error in Dimension 2!" %(self.CORRUPT_DIM2[index], layerShape[2])
+                self.CORRUPT_DIM2[index] < layerShape[2]
+            ), "%d < %d: Out of bounds error in Dimension 2!" % (
+                self.CORRUPT_DIM2[index],
+                layerShape[2],
+            )
+        if layerDim > 3:
             assert (
-                self.CORRUPT_DIM3[index]
-                < layerShape[3]
-            ), "%d < %d: Out of bounds error in Dimension 3!" %(self.CORRUPT_DIM3[index], layerShape[3])
+                self.CORRUPT_DIM3[index] < layerShape[3]
+            ), "%d < %d: Out of bounds error in Dimension 3!" % (
+                self.CORRUPT_DIM3[index],
+                layerShape[3],
+            )
 
         if layerDim <= 2:
             if self.CORRUPT_DIM2[index] != None or self.CORRUPT_DIM3[index] != None:
-                warnings.warn("Values in Dim2 and Dim3 ignored, since layer is %s" %(layerType))
+                warnings.warn(
+                    "Values in Dim2 and Dim3 ignored, since layer is %s" % (layerType)
+                )
 
-        logging.info("Finished checking bounds on inj '%d'"%(index))
+        logging.info("Finished checking bounds on inj '%d'" % (index))
 
     def _set_value(self, module, input, output):
-        logging.info("Processing hook of Layer %d: %s" %(self.get_curr_layer(), self.get_layer_type(self.get_curr_layer())))
+        logging.info(
+            "Processing hook of Layer %d: %s"
+            % (self.get_curr_layer(), self.get_layer_type(self.get_curr_layer()))
+        )
         inj_list = list(
             filter(
                 lambda x: self.CORRUPT_LAYER[x] == self.get_curr_layer(),
@@ -285,7 +331,9 @@ class fault_injection:
 
         layerDim = self.LAYERS_DIM[self.get_curr_layer()]
 
-        logging.info("Layer %d injection list size: %d" %(self.get_curr_layer(), len(inj_list)))
+        logging.info(
+            "Layer %d injection list size: %d" % (self.get_curr_layer(), len(inj_list))
+        )
         if layerDim == 2:
             for i in inj_list:
                 self.assert_inj_bounds(index=i)
@@ -294,11 +342,12 @@ class fault_injection:
                     % (
                         self.CORRUPT_BATCH[i],
                         self.CORRUPT_DIM1[i],
-                        output[self.CORRUPT_BATCH[i]][self.CORRUPT_DIM1[i]]
+                        output[self.CORRUPT_BATCH[i]][self.CORRUPT_DIM1[i]],
                     )
                 )
                 logging.info("Changing value to %d" % self.CORRUPT_VALUE[i])
-                output[self.CORRUPT_BATCH[i]][self.CORRUPT_DIM1[i]
+                output[self.CORRUPT_BATCH[i]][
+                    self.CORRUPT_DIM1[i]
                 ] = self.CORRUPT_VALUE[i]
 
         elif layerDim == 4:
@@ -317,9 +366,9 @@ class fault_injection:
                     )
                 )
                 logging.info("Changing value to %d" % self.CORRUPT_VALUE[i])
-                output[self.CORRUPT_BATCH[i]][self.CORRUPT_DIM1[i]][self.CORRUPT_DIM2[i]][
-                    self.CORRUPT_DIM3[i]
-                ] = self.CORRUPT_VALUE[i]
+                output[self.CORRUPT_BATCH[i]][self.CORRUPT_DIM1[i]][
+                    self.CORRUPT_DIM2[i]
+                ][self.CORRUPT_DIM3[i]] = self.CORRUPT_VALUE[i]
 
         self.updateLayer()
 
@@ -383,10 +432,14 @@ class fault_injection:
         return (self.get_fmaps_H(layer), self.get_fmaps_W(layer))
 
     def print_pytorchfi_layer_summary(self):
-        summary_str = "==================== PYTORCHFI INIT SUMMARY ====================="+ "\n\n"
+        summary_str = (
+            "==================== PYTORCHFI INIT SUMMARY =====================" + "\n\n"
+        )
 
         summary_str += "Layer types allowing injections:\n"
-        summary_str += "----------------------------------------------------------------" + "\n"
+        summary_str += (
+            "----------------------------------------------------------------" + "\n"
+        )
         for l_type in self._INJ_LAYER_TYPES:
             summary_str += "{:>5}".format("- ")
             substring = str(l_type).split(".")[-1].split("'")[0]
@@ -398,7 +451,9 @@ class fault_injection:
         summary_str += "\n"
 
         summary_str += "Model Info:\n"
-        summary_str += "----------------------------------------------------------------" + "\n"
+        summary_str += (
+            "----------------------------------------------------------------" + "\n"
+        )
 
         summary_str += "   - Shape of input into the model: ("
         for dim in self._INPUT_SHAPE:
@@ -409,11 +464,16 @@ class fault_injection:
         summary_str += "   - CUDA Enabled: " + str(self.use_cuda) + "\n\n"
 
         summary_str += "Layer Info:\n"
-        summary_str += "----------------------------------------------------------------" + "\n"
+        summary_str += (
+            "----------------------------------------------------------------" + "\n"
+        )
         line_new = "{:>5}  {:>15}  {:>15} {:>20}".format(
-            "Layer #", "Layer type", "Dimensions", "Output Shape")
+            "Layer #", "Layer type", "Dimensions", "Output Shape"
+        )
         summary_str += line_new + "\n"
-        summary_str += "----------------------------------------------------------------" + "\n"
+        summary_str += (
+            "----------------------------------------------------------------" + "\n"
+        )
         for layer in range(len(self.OUTPUT_SIZE)):
             line_new = "{:>5}  {:>15}  {:>15} {:>20}".format(
                 layer,
@@ -423,7 +483,8 @@ class fault_injection:
             )
             summary_str += line_new + "\n"
 
-        summary_str += "================================================================" + "\n"
+        summary_str += (
+            "================================================================" + "\n"
+        )
 
         return summary_str
-
