@@ -48,10 +48,9 @@ def gather_min_max_per_layer(
     batch_num = 0
     total_fmaps = 0
 
-    count = 0
+    print("NUMBER INPUTS", len(data_iter))
 
     for input_data in tqdm(data_iter):
-        count += 1
 
         # prepare the next batch for inference
         images, labels = input_data
@@ -115,8 +114,6 @@ def gather_min_max_per_layer(
         handles[i].remove()
     del activations
 
-    print("COUNT", count)
-
     actual_max = torch.max(torch.abs(layer_min), torch.abs(layer_max))
     return layer_min, layer_max, actual_max
 
@@ -178,7 +175,7 @@ if __name__ == "__main__":
     layer_min, layer_max, actual_max = gather_min_max_per_layer(
         model, dataiter, BATCH_SIZE
     )
-    ranges = actual_max.numpy().tolist()
+    ranges = actual_max.cpu().numpy().tolist()
 
     path = "/n/home09/taloui/scratch/pytorchfi/test/vision_transformers/profile/"
     save_data(path, "range_data_layer", ranges)
@@ -194,6 +191,6 @@ if __name__ == "__main__":
 
     f = open(path + "range_data" + "_layer.csv", "w+")
     for i in range(len(ranges)):
-        outputString = "%d, %f %f\n" % (i, ranges[i])
+        outputString = "%d, %f\n" % (i, ranges[i])
         f.write(outputString)
     f.close()
