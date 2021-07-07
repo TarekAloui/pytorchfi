@@ -10,6 +10,7 @@ import torchvision.datasets as datasets
 from tqdm import tqdm
 import os.path
 import pickle
+import argparse
 
 IMAGENET_PATH = "/data/imagenet/"
 TORCH_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -38,9 +39,7 @@ def gather_min_max_per_layer(
     # register forward hook to the model
     handles = []
     for param in model.modules():
-        if isinstance(param, nn.Conv2d) or isinstance(
-            param, nn.Linear
-        ):  # TODO: or nn.Linear
+        if isinstance(param, nn.Conv2d) or isinstance(param, nn.Linear):
             handles.append(param.register_forward_hook(save_activations))
 
     # main loops to gather ranges
@@ -137,6 +136,7 @@ def load_dataiter(batch_sz):
         ),
         batch_size=batch_sz,
         shuffle=False,
+        num_workers=8,  # Tells pytorch the number of cores to use
     )
     dataiter = iter(val_loader)
     return dataiter
@@ -167,18 +167,31 @@ if __name__ == "__main__":
 
     # torch.cuda.set_device(0)
 
+    # Parsing Arguments
+    parser = argparse.ArgumentParser(
+        description="Executing Profiling pass on a timm supported model"
+    )
+
+    parser.add_argument("model", help="The model to be used for profiling")
+    parser.add_argument(
+        "-b", "--batchsz", dest="batchsz", help="The batch size", type=int
+    )
+    args = parser.parse_args()
+    model_name = args.model if args.model else "vit_base_patch16_224"
+    batchsz = args.batchsz if args.batchsz else BATCH_SIZE
+
     # Loading model and dataset
-    model = timm.create_model("vit_base_patch16_224", pretrained=True).cuda().half()
-    dataiter = load_dataiter(BATCH_SIZE)
+    model = timm.create_model(model_name, pretrained=True).cuda().half()
+    dataiter = load_dataiter(batchsz)
 
     # Executing profiling pass
     layer_min, layer_max, actual_max = gather_min_max_per_layer(
-        model, dataiter, BATCH_SIZE
+        model, dataiter, batchsz
     )
     ranges = actual_max.cpu().numpy().tolist()
 
     path = "/n/home09/taloui/scratch/pytorchfi/test/vision_transformers/profile/"
-    save_data(path, "range_data_layer", ranges)
+    save_data(path, model_name + "_range_data_layer", ranges)
 
     # # CSV
 
@@ -189,7 +202,7 @@ if __name__ == "__main__":
     #         f.write(outputString)
     # f.close()
 
-    f = open(path + "range_data" + "_layer.csv", "w+")
+    f = open(path + model_name + "_range_data" + "_layer.csv", "w+")
     for i in range(len(ranges)):
         outputString = "%d, %f\n" % (i, ranges[i])
         f.write(outputString)
