@@ -29,7 +29,7 @@ def random_neuron_location(pfi_model, layer=-1):
 
 
 def random_weight_location(pfi_model, layer=-1):
-    loc = list()
+    loc = []
 
     if layer == -1:
         corrupt_layer = random.randint(0, pfi_model.get_total_layers() - 1)
@@ -45,8 +45,10 @@ def random_weight_location(pfi_model, layer=-1):
                     loc.append(random.randint(0, dim - 1))
             curr_layer += 1
 
-    assert curr_layer == pfi_model.get_total_layers()
-    assert len(loc) == 5
+    if curr_layer != pfi_model.get_total_layers():
+        raise AssertionError
+    if len(loc) != 5:
+        raise AssertionError
 
     return tuple(loc)
 
@@ -67,7 +69,7 @@ def random_neuron_inj(pfi_model, min_val=-1, max_val=1):
     err_val = random_value(min_val=min_val, max_val=max_val)
 
     return pfi_model.declare_neuron_fi(
-        batch=[b], layer_num=[layer], c=[C], h=[H], w=[W], value=[err_val]
+        batch=[b], layer_num=[layer], dim1=[C], dim2=[H], dim3=[W], value=[err_val]
     )
 
 
@@ -96,7 +98,12 @@ def random_neuron_inj_batched(
         value.append(err_val)
 
     return pfi_model.declare_neuron_fi(
-        batch=batch, layer_num=layer_num, c=c_rand, h=h_rand, w=w_rand, value=value
+        batch=batch,
+        layer_num=layer_num,
+        dim1=c_rand,
+        dim2=h_rand,
+        dim3=w_rand,
+        value=value,
     )
 
 
@@ -115,7 +122,12 @@ def random_inj_per_layer(pfi_model, min_val=-1, max_val=1):
         value.append(random_value(min_val=min_val, max_val=max_val))
 
     return pfi_model.declare_neuron_fi(
-        batch=batch, layer_num=layer_num, c=c_rand, h=h_rand, w=w_rand, value=value
+        batch=batch,
+        layer_num=layer_num,
+        dim1=c_rand,
+        dim2=h_rand,
+        dim3=w_rand,
+        value=value,
     )
 
 
@@ -145,12 +157,19 @@ def random_inj_per_layer_batched(
             value.append(err_val)
 
     return pfi_model.declare_neuron_fi(
-        batch=batch, layer_num=layer_num, c=c_rand, h=h_rand, w=w_rand, value=value
+        batch=batch,
+        layer_num=layer_num,
+        dim1=c_rand,
+        dim2=h_rand,
+        dim3=w_rand,
+        value=value,
     )
 
 
 class single_bit_flip_func(core.fault_injection):
-    def __init__(self, model, batch_size, input_shape=[3,224,224], **kwargs):
+    def __init__(self, model, batch_size, input_shape=None, **kwargs):
+        if input_shape is None:
+            input_shape = [3, 224, 224]
         super().__init__(model, batch_size, input_shape=input_shape, **kwargs)
         logging.basicConfig(format="%(asctime)-15s %(clientip)s %(user)-8s %(message)s")
 
@@ -197,12 +216,14 @@ class single_bit_flip_func(core.fault_injection):
         # sign extend 0's
         temp = "0" * (total_bits - len(bits))
         bits = temp + bits
-        assert len(bits) == total_bits
+        if len(bits) != total_bits:
+            raise AssertionError
         logging.info("sign extend bits", bits)
 
         # flip a bit
         # use MSB -> LSB indexing
-        assert bit_pos < total_bits
+        if bit_pos >= total_bits:
+            raise AssertionError
 
         bits_new = list(bits)
         bit_loc = total_bits - bit_pos - 1
@@ -218,7 +239,8 @@ class single_bit_flip_func(core.fault_injection):
             logging.info("Error: Not all the bits are digits (0/1)")
 
         # convert to quantum
-        assert bits_str_new.isdigit()
+        if not bits_str_new.isdigit():
+            raise AssertionError
         new_quantum = int(bits_str_new, 2)
         out = self._twos_comp(new_quantum, total_bits)
         logging.info("out", out)
@@ -235,7 +257,7 @@ class single_bit_flip_func(core.fault_injection):
         logging.info("curr_conv", self.get_curr_layer())
         logging.info("range_max", range_max)
 
-        if type(corrupt_conv_set) == list:
+        if type(corrupt_conv_set) is list:
             inj_list = list(
                 filter(
                     lambda x: corrupt_conv_set[x] == self.get_curr_layer(),
@@ -252,16 +274,16 @@ class single_bit_flip_func(core.fault_injection):
                 logging.info("rand_bit", rand_bit)
                 new_value = self._flip_bit_signed(prev_value, range_max, rand_bit)
 
-                output[self.CORRUPT_BATCH[i]][self.CORRUPT_DIM1[i]][self.CORRUPT_DIM2[i]][
-                    self.CORRUPT_DIM3[i]
-                ] = new_value
+                output[self.CORRUPT_BATCH[i]][self.CORRUPT_DIM1[i]][
+                    self.CORRUPT_DIM2[i]
+                ][self.CORRUPT_DIM3[i]] = new_value
 
         else:
             self.assert_inj_bounds()
             if self.get_curr_layer() == corrupt_conv_set:
-                prev_value = output[self.CORRUPT_BATCH][self.CORRUPT_DIM1][self.CORRUPT_DIM2][
-                    self.CORRUPT_DIM3
-                ]
+                prev_value = output[self.CORRUPT_BATCH][self.CORRUPT_DIM1][
+                    self.CORRUPT_DIM2
+                ][self.CORRUPT_DIM3]
 
                 rand_bit = random.randint(0, self.bits - 1)
                 logging.info("rand_bit", rand_bit)
@@ -296,14 +318,15 @@ def random_neuron_single_bit_inj_batched(pfi_model, layer_ranges, randLoc=True):
     return pfi_model.declare_neuron_fi(
         batch=batch,
         layer_num=layer_num,
-        c=c_rand,
-        h=h_rand,
-        w=w_rand,
+        dim1=c_rand,
+        dim2=h_rand,
+        dim3=w_rand,
         function=pfi_model.single_bit_flip_signed_across_batch,
     )
 
 
 def random_neuron_single_bit_inj(pfi_model, layer_ranges):
+    # TODO Support multiple error models via list
     pfi_model.set_conv_max(layer_ranges)
 
     batch = random_batch_element(pfi_model)
@@ -312,10 +335,10 @@ def random_neuron_single_bit_inj(pfi_model, layer_ranges):
     return pfi_model.declare_neuron_fi(
         batch=[batch],
         layer_num=[layer],
-        c=[C],
-        h=[H],
-        w=[W],
-        function=pfi_model.single_bit_flip_signed_across_batch, #TODO Support multiple error models via list
+        dim1=[C],
+        dim2=[H],
+        dim3=[W],
+        function=pfi_model.single_bit_flip_signed_across_batch,
     )
 
 
@@ -329,14 +352,14 @@ def random_weight_inj(pfi_model, corrupt_conv=-1, min_val=-1, max_val=1):
     faulty_val = random_value(min_val=min_val, max_val=max_val)
 
     return pfi_model.declare_weight_fi(
-        layer_num=layer, k=k, c=c_in, h=kH, w=kW, value=faulty_val
+        layer_num=layer, k=k, dim1=c_in, dim2=kH, dim3=kW, value=faulty_val
     )
 
 
 def zeroFunc_rand_weight(pfi_model):
     (layer, k, c_in, kH, kW) = random_weight_location(pfi_model)
     return pfi_model.declare_weight_fi(
-        function=_zero_rand_weight, layer_num=layer, k=k, c=c_in, h=kH, w=kW
+        function=_zero_rand_weight, layer_num=layer, k=k, dim1=c_in, dim2=kH, dim3=kW
     )
 
 

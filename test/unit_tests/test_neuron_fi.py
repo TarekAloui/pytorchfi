@@ -53,21 +53,27 @@ class TestNeuronFIgpu:
         inj_value_i = [10000.0]
 
         self.inj_model = self.p.declare_neuron_fi(
-            batch=batch_i, layer_num=layer_i, c=c_i, h=h_i, w=w_i, value=inj_value_i
+            batch=batch_i,
+            layer_num=layer_i,
+            dim1=c_i,
+            dim2=h_i,
+            dim3=w_i,
+            value=inj_value_i,
         )
 
         self.inj_model.eval()
         with torch.no_grad():
             corrupted_output_1 = self.inj_model(self.images)
 
-        assert not torch.all(corrupted_output_1.eq(self.output))
+        if torch.all(corrupted_output_1.eq(self.output)):
+            raise AssertionError
 
         self.inj_model = self.p.declare_neuron_fi(
             batch=batch_i,
             layer_num=layer_i,
-            c=c_i,
-            h=h_i,
-            w=w_i,
+            dim1=c_i,
+            dim2=h_i,
+            dim3=w_i,
             value=[0],
         )
 
@@ -75,18 +81,26 @@ class TestNeuronFIgpu:
         with torch.no_grad():
             uncorrupted_output = self.inj_model(self.images)
 
-        assert torch.all(uncorrupted_output.eq(self.output))
+        if not torch.all(uncorrupted_output.eq(self.output)):
+            raise AssertionError
 
         self.inj_model = self.p.declare_neuron_fi(
-            batch=batch_i, layer_num=layer_i, c=c_i, h=h_i, w=w_i, value=inj_value_i * 2
+            batch=batch_i,
+            layer_num=layer_i,
+            dim1=c_i,
+            dim2=h_i,
+            dim3=w_i,
+            value=inj_value_i * 2,
         )
 
         self.inj_model.eval()
         with torch.no_grad():
             corrupted_output_2 = self.inj_model(self.images)
 
-        assert not torch.all(corrupted_output_2.eq(self.output))
-        assert torch.all(corrupted_output_2.eq(corrupted_output_2))
+        if torch.all(corrupted_output_2.eq(self.output)):
+            raise AssertionError
+        if not torch.all(corrupted_output_2.eq(corrupted_output_2)):
+            raise AssertionError
 
 
 class TestNeuronFIcpu:
@@ -131,21 +145,27 @@ class TestNeuronFIcpu:
         inj_value_i = [10000.0]
 
         self.inj_model = self.p.declare_neuron_fi(
-            batch=batch_i, layer_num=layer_i, c=c_i, h=h_i, w=w_i, value=inj_value_i
+            batch=batch_i,
+            layer_num=layer_i,
+            dim1=c_i,
+            dim2=h_i,
+            dim3=w_i,
+            value=inj_value_i,
         )
 
         self.inj_model.eval()
         with torch.no_grad():
             corrupted_output_1 = self.inj_model(self.images)
 
-        assert not torch.all(corrupted_output_1.eq(self.output))
+        if torch.all(corrupted_output_1.eq(self.output)):
+            raise AssertionError
 
         self.inj_model = self.p.declare_neuron_fi(
             batch=batch_i,
             layer_num=layer_i,
-            c=c_i,
-            h=h_i,
-            w=w_i,
+            dim1=c_i,
+            dim2=h_i,
+            dim3=w_i,
             value=[0],
         )
 
@@ -153,18 +173,26 @@ class TestNeuronFIcpu:
         with torch.no_grad():
             uncorrupted_output = self.inj_model(self.images)
 
-        assert torch.all(uncorrupted_output.eq(self.output))
+        if not torch.all(uncorrupted_output.eq(self.output)):
+            raise AssertionError
 
         self.inj_model = self.p.declare_neuron_fi(
-            batch=batch_i, layer_num=layer_i, c=c_i, h=h_i, w=w_i, value=inj_value_i * 2
+            batch=batch_i,
+            layer_num=layer_i,
+            dim1=c_i,
+            dim2=h_i,
+            dim3=w_i,
+            value=inj_value_i * 2,
         )
 
         self.inj_model.eval()
         with torch.no_grad():
             corrupted_output_2 = self.inj_model(self.images)
 
-        assert not torch.all(corrupted_output_2.eq(self.output))
-        assert torch.all(corrupted_output_2.eq(corrupted_output_2))
+        if torch.all(corrupted_output_2.eq(self.output)):
+            raise AssertionError
+        if not torch.all(corrupted_output_2.eq(corrupted_output_2)):
+            raise AssertionError
 
 
 class TestNeuronFIgpuBatch:
@@ -216,17 +244,26 @@ class TestNeuronFIgpuBatch:
         inj_value_i = [10000.0]
 
         self.inj_model = self.p.declare_neuron_fi(
-            batch=batch_i, layer_num=layer_i, c=c_i, h=h_i, w=w_i, value=inj_value_i
+            batch=batch_i,
+            layer_num=layer_i,
+            dim1=c_i,
+            dim2=h_i,
+            dim3=w_i,
+            value=inj_value_i,
         )
 
         self.inj_model.eval()
         with torch.no_grad():
             corrupted_output_1 = self.inj_model(self.images)
 
-        assert torch.all(corrupted_output_1[0].eq(self.output[0]))
-        assert torch.all(corrupted_output_1[1].eq(self.output[1]))
-        assert not torch.all(corrupted_output_1[2].eq(self.output[2]))
-        assert torch.all(corrupted_output_1[3].eq(self.output[3]))
+        if not torch.all(corrupted_output_1[0].eq(self.output[0])):
+            raise AssertionError
+        if not torch.all(corrupted_output_1[1].eq(self.output[1])):
+            raise AssertionError
+        if torch.all(corrupted_output_1[2].eq(self.output[2])):
+            raise AssertionError
+        if not torch.all(corrupted_output_1[3].eq(self.output[3])):
+            raise AssertionError
 
     @pytest.mark.skipif(
         not torch.cuda.is_available(), reason="GPU not supported on this machine"
@@ -242,17 +279,26 @@ class TestNeuronFIgpuBatch:
         inj_value_i = [10000.0, 10000.0, 10000.0]
 
         self.inj_model = self.p.declare_neuron_fi(
-            batch=batch_i, layer_num=layer_i, c=c_i, h=h_i, w=w_i, value=inj_value_i
+            batch=batch_i,
+            layer_num=layer_i,
+            dim1=c_i,
+            dim2=h_i,
+            dim3=w_i,
+            value=inj_value_i,
         )
 
         self.inj_model.eval()
         with torch.no_grad():
             corrupted_output_1 = self.inj_model(self.images)
 
-        assert not torch.all(corrupted_output_1[0].eq(self.output[0]))
-        assert torch.all(corrupted_output_1[1].eq(self.output[1]))
-        assert not torch.all(corrupted_output_1[2].eq(self.output[2]))
-        assert not torch.all(corrupted_output_1[3].eq(self.output[3]))
+        if torch.all(corrupted_output_1[0].eq(self.output[0])):
+            raise AssertionError
+        if not torch.all(corrupted_output_1[1].eq(self.output[1])):
+            raise AssertionError
+        if torch.all(corrupted_output_1[2].eq(self.output[2])):
+            raise AssertionError
+        if torch.all(corrupted_output_1[3].eq(self.output[3])):
+            raise AssertionError
 
 
 class TestNeuronFIcpuBatch:
@@ -297,17 +343,26 @@ class TestNeuronFIcpuBatch:
         inj_value_i = [10000.0]
 
         self.inj_model = self.p.declare_neuron_fi(
-            batch=batch_i, layer_num=layer_i, c=c_i, h=h_i, w=w_i, value=inj_value_i
+            batch=batch_i,
+            layer_num=layer_i,
+            dim1=c_i,
+            dim2=h_i,
+            dim3=w_i,
+            value=inj_value_i,
         )
 
         self.inj_model.eval()
         with torch.no_grad():
             corrupted_output_1 = self.inj_model(self.images)
 
-        assert torch.all(corrupted_output_1[0].eq(self.output[0]))
-        assert torch.all(corrupted_output_1[1].eq(self.output[1]))
-        assert not torch.all(corrupted_output_1[2].eq(self.output[2]))
-        assert torch.all(corrupted_output_1[3].eq(self.output[3]))
+        if not torch.all(corrupted_output_1[0].eq(self.output[0])):
+            raise AssertionError
+        if not torch.all(corrupted_output_1[1].eq(self.output[1])):
+            raise AssertionError
+        if torch.all(corrupted_output_1[2].eq(self.output[2])):
+            raise AssertionError
+        if not torch.all(corrupted_output_1[3].eq(self.output[3])):
+            raise AssertionError
 
     def test_neuronFI_batch_2(self):
         batch_i = [0, 2, 3]
@@ -319,14 +374,23 @@ class TestNeuronFIcpuBatch:
         inj_value_i = [10000.0, 10000.0, 10000.0]
 
         self.inj_model = self.p.declare_neuron_fi(
-            batch=batch_i, layer_num=layer_i, c=c_i, h=h_i, w=w_i, value=inj_value_i
+            batch=batch_i,
+            layer_num=layer_i,
+            dim1=c_i,
+            dim2=h_i,
+            dim3=w_i,
+            value=inj_value_i,
         )
 
         self.inj_model.eval()
         with torch.no_grad():
             corrupted_output_1 = self.inj_model(self.images)
 
-        assert not torch.all(corrupted_output_1[0].eq(self.output[0]))
-        assert torch.all(corrupted_output_1[1].eq(self.output[1]))
-        assert not torch.all(corrupted_output_1[2].eq(self.output[2]))
-        assert not torch.all(corrupted_output_1[3].eq(self.output[3]))
+        if torch.all(corrupted_output_1[0].eq(self.output[0])):
+            raise AssertionError
+        if not torch.all(corrupted_output_1[1].eq(self.output[1])):
+            raise AssertionError
+        if torch.all(corrupted_output_1[2].eq(self.output[2])):
+            raise AssertionError
+        if torch.all(corrupted_output_1[3].eq(self.output[3])):
+            raise AssertionError
